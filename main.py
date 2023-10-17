@@ -57,12 +57,14 @@ ops = {
     "+": operator.add,
     "-": operator.sub,
     "*": operator.mul,
-    "/": operator.truediv
+    "/": operator.truediv,
+    "^": operator.pow,
+    "√": lambda b, a: operator.pow(a, 1/b)
 } # etc.
 singular_ops = {
+    # HACK: on emtpy, return self
+    " ": lambda x: x,
     "!": math.factorial,
-    "^": lambda x: math.pow(x, 2),
-    "√": math.sqrt,
 }
 
 
@@ -81,8 +83,24 @@ def combine_algorithm(values:list[int], operators:list[str]):
         yield final_value, op_tuple
 
 
-# def combine_singular(number:int, singular_operator:str):
-#     return singular_ops[singular_operator](number)
+
+def nice_solution_comment(_singular_op:str, _bi_op:str):
+    arguments = ["a", "b", "c"]
+    singular_operators = list(_singular_op)
+    binary_operators = list(_bi_op)
+    # add singular operator
+    for index, _ in enumerate(arguments):
+        val = singular_operators[index]
+        arguments[index] += "" if val == " " else val
+
+    # add binary operator
+    output = []
+    for index, _ in enumerate(arguments):
+        output.append(arguments[index])
+        if index in [0, 1]:
+            output.append(binary_operators.pop())
+
+    return " ".join(output)
 
 
 
@@ -117,32 +135,22 @@ if __name__ == "__main__":
     argsv = init_args()
     plates = filter(plate_with_numbers, argsv.plate_numbers)
     operator_combination = generate_combinations(2, ["+", "-", "*", "/"])
-    singular_operator_combination = generate_combinations(3, ["!", "^", "√"])
+    singular_operator_combination = generate_combinations(3, [" ", "!"])
     for plate in plates:
         value = extract_numbers(plate).zfill(4)
         input_values = list(turn_to_ints(list(value)))
         output_value = input_values.pop(-1)
-        for result, algorithm in combine_algorithm(input_values, operator_combination):
-            if result == output_value:
-                if algorithm == "++":
-                    print(plate, "plate is Dory's summation!")
-                elif algorithm == "--":
-                    print(plate, "plate is Dory's negation!")
-                elif algorithm == "**":
-                    print(plate, "plate is Dory's multiplication!")
-                else:
-                    print(plate, "plate is in Dory's algorithms! Combination: ", algorithm)
-                # FIXME: if only first value accepted, uncomment next line
-                # break
-
-        for new_values, singular_algorithm in combine_singular_algorithm(input_values, singular_operator_combination):
+        for new_values, singular_algorithm in combine_singular_algorithm(
+            input_values,
+            singular_operator_combination
+            ):
             for result, algorithm in combine_algorithm(new_values, operator_combination):
                 if result == output_value:
-                    if singular_algorithm == "!!!":
-                        print(plate, "plate is in Dory's factoriel algorithm!")
-                    elif singular_algorithm == "^^^":
-                        print(plate, "plate is in Dory's square algorithm!")
-                    elif singular_algorithm == "√√√":
-                        print(plate, "plate is in Dory's root algorithm!")
-                    else:
-                        print(plate, "plate is in Dory's algorithms! Combination: ", algorithm, singular_algorithm)
+                    print(
+                        plate,
+                        "plate is in Dory's algorithms! Combination: ",
+                        nice_solution_comment(singular_algorithm, algorithm)
+                    )
+
+                # FIXME: if only first value accepted, uncomment next line
+                # break
