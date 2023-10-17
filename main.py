@@ -2,6 +2,7 @@ import argparse
 import re
 import operator
 import math
+import csv
 
 # resource: https://stackoverflow.com/a/47163546/2475919
 def plate_with_numbers(plate_case:str):
@@ -14,7 +15,9 @@ def plate_with_numbers(plate_case:str):
     # in [] must be in string to have positive match.  
     # plate_format = re.compile('^[a-zA-Z]{2}[0-9]{2}[a-zA-z]{3}$')
     # Croatian plates
-    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{3,4}-[a-zA-z]{1,2}$')
+    # plate_format = re.compile('^[a-zA-Z]{2}[0-9]{3,4}-[a-zA-z]{1,2}$')
+    # Only four numbered plates
+    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}-[a-zA-z]{1,2}$')
     return plate_format.match(plate_case) is not None
 
 
@@ -65,6 +68,7 @@ singular_ops = {
     # HACK: on emtpy, return self
     " ": lambda x: x,
     "!": math.factorial,
+    "-": operator.neg,
 }
 
 
@@ -75,23 +79,26 @@ def combine_algorithm(values:list[int], operators:list[str]):
     for op_tuple in operators:
         first_op, second_op = list(op_tuple)
         try:
+            # FIXME: operators hierarchy not valued!
             new_value = ops[first_op](values[0], values[1])
             final_value = ops[second_op](new_value, values[2])
         except ZeroDivisionError:
-            # TODO: re-raise error
+            # TODO: ignore edge cases
             continue
         yield final_value, op_tuple
 
 
 
 def nice_solution_comment(_singular_op:str, _bi_op:str):
-    arguments = ["a", "b", "c"]
+    arguments = ["(a", "b", "c"]
     singular_operators = list(_singular_op)
     binary_operators = list(_bi_op)
     # add singular operator
     for index, _ in enumerate(arguments):
         val = singular_operators[index]
         arguments[index] += "" if val == " " else val
+        if index == 1:
+            arguments[index] += ")"
 
     # add binary operator
     output = []
@@ -118,6 +125,26 @@ def combine_singular_algorithm(values:list[int], operators:list[str]) -> list[in
         yield new_val, op_triple
 
 
+OPERATOR_COMBINATIONS = generate_combinations(2, ["+", "-", "*", "/"])
+SINGULAR_COMBINATIONS = generate_combinations(3, [" ", "!", "-"])
+
+def run_algorithms(plate_full):
+    counter = 0
+    first_text = ''
+    value = extract_numbers(plate_full).zfill(4)
+    input_values = list(turn_to_ints(list(value)))
+    output_value = input_values.pop(-1)
+    for new_values, singular_algorithm in combine_singular_algorithm(
+        input_values,
+        SINGULAR_COMBINATIONS
+        ):
+        for result, algorithm in combine_algorithm(new_values, OPERATOR_COMBINATIONS):
+            if result == output_value:
+                counter += 1
+                if len(first_text) == 0:
+                    first_text = nice_solution_comment(singular_algorithm, algorithm)
+    return first_text, counter
+
 
 def init_args():
     # Initializing Parser
@@ -134,23 +161,23 @@ def init_args():
 if __name__ == "__main__":
     argsv = init_args()
     plates = filter(plate_with_numbers, argsv.plate_numbers)
-    operator_combination = generate_combinations(2, ["+", "-", "*", "/"])
-    singular_operator_combination = generate_combinations(3, [" ", "!"])
-    for plate in plates:
-        value = extract_numbers(plate).zfill(4)
-        input_values = list(turn_to_ints(list(value)))
-        output_value = input_values.pop(-1)
-        for new_values, singular_algorithm in combine_singular_algorithm(
-            input_values,
-            singular_operator_combination
-            ):
-            for result, algorithm in combine_algorithm(new_values, operator_combination):
-                if result == output_value:
-                    print(
-                        plate,
-                        "plate is in Dory's algorithms! Combination: ",
-                        nice_solution_comment(singular_algorithm, algorithm)
-                    )
 
-                # FIXME: if only first value accepted, uncomment next line
-                # break
+    # data rows of csv file
+    rows = []
+
+    for plate in plates:
+        flare, solution_counter = run_algorithms(plate)
+        rows.append([plate, flare, solution_counter])
+
+    # field names
+    fields = ['plate_num', 'solution', 'total_num']
+
+    with open("registration.csv", 'w', encoding="UTF-8") as csvfile:
+        # creating a csv writer object
+        csvwriter = csv.writer(csvfile)
+
+        # writing the fields
+        csvwriter.writerow(fields)
+
+        # writing the data rows
+        csvwriter.writerows(rows)
