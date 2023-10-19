@@ -12,18 +12,14 @@ def plate_with_numbers(plate_case:str):
     #    two numbers -> [0-9]{2}
     #    three letters -> [a-zA-Z]{3}
     # Number in {} says exactly how much occurrences of symbols in
-    # in [] must be in string to have positive match.  
-    # plate_format = re.compile('^[a-zA-Z]{2}[0-9]{2}[a-zA-z]{3}$')
-    # Croatian plates
-    # plate_format = re.compile('^[a-zA-Z]{2}[0-9]{3,4}-[a-zA-z]{1,2}$')
-    # Only four numbered plates
-    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}-[a-zA-z]{1,2}$')
+    # in [] must be in string to have positive match.
+    plate_format = re.compile('[0-9]{4}|[0-9]{3}-[0-9]{1}')
     return plate_format.match(plate_case) is not None
 
 
 def extract_numbers(full_plate:str):
     # returns a substring containing only numbers
-    return re.search("[0-9]+", full_plate).group()
+    return "".join(re.findall("[0-9]+", full_plate))
 
 
 def turn_to_ints(value_holder:list[str]):
@@ -131,7 +127,9 @@ SINGULAR_COMBINATIONS = generate_combinations(3, [" ", "!", "-"])
 def run_algorithms(plate_full):
     counter = 0
     first_text = ''
-    value = extract_numbers(plate_full).zfill(4)
+    value = extract_numbers(plate_full)
+    if len(value) != 4:
+        raise ValueError(f"plate number {value} not compatible with Dora's game!")
     input_values = list(turn_to_ints(list(value)))
     output_value = input_values.pop(-1)
     for new_values, singular_algorithm in combine_singular_algorithm(
