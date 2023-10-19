@@ -67,6 +67,35 @@ singular_ops = {
     "-": operator.neg,
 }
 
+# https://stackoverflow.com/a/61560976/2475919
+def calc_all(*values,seen=None):
+    seen = seen or set()
+    if len(values) == 2:
+        a,b  = values
+        a,sa = (a[0],f"({a[1]})") if isinstance(a,tuple) else (a,str(a))
+        b,sb = (b[0],f"({b[1]})") if isinstance(b,tuple) else (b,str(b))
+        if a>b:
+            a,sa, b,sb = b,sb, a,sa
+        if (a,b) in seen or seen.add((a,b)):
+            return                
+        yield a+b, f"{sa}+{sb}"
+        yield a*b, f"{sa}*{sb}"
+        yield a-b, f"{sa}-{sb}"
+        yield b-a, f"{sb}-{sa}"
+        if b != 0 and a%b==0:
+            yield a//b, f"{sa}/{sb}"
+        if a != 0 and b%a==0:
+            yield b//a, f"{sb}/{sa}"
+        return
+    pairs = ((i,j) for i in range(len(values)-1) for j in range(i+1,len(values)))
+    for i,j in pairs:
+        rest = [*values]
+        a,b  = rest.pop(j),rest.pop(i)
+        for paired in calc_all(a,b,seen=seen):
+            for result in calc_all(paired,*rest):
+                if result in seen or seen.add(result):
+                    continue
+                yield result
 
 
 def combine_algorithm(values:list[int], operators:list[str]):
@@ -121,7 +150,7 @@ def combine_singular_algorithm(values:list[int], operators:list[str]) -> list[in
         yield new_val, op_triple
 
 
-OPERATOR_COMBINATIONS = generate_combinations(2, ["+", "-", "*", "/"])
+# OPERATOR_COMBINATIONS = generate_combinations(2, ["+", "-", "*", "/"])
 SINGULAR_COMBINATIONS = generate_combinations(3, [" ", "!", "-"])
 
 def run_algorithms(plate_full):
@@ -136,11 +165,13 @@ def run_algorithms(plate_full):
         input_values,
         SINGULAR_COMBINATIONS
         ):
-        for result, algorithm in combine_algorithm(new_values, OPERATOR_COMBINATIONS):
+        for result, algorithm in calc_all(*new_values):
             if result == output_value:
                 counter += 1
                 if len(first_text) == 0:
-                    first_text = nice_solution_comment(singular_algorithm, algorithm)
+                    # first_text = nice_solution_comment(singular_algorithm, algorithm)
+                    # FIXME: add singular algorithm
+                    first_text = algorithm
     return first_text, counter
 
 
